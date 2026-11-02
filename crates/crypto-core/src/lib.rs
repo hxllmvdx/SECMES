@@ -15,7 +15,7 @@ pub use chunker::{CancellationToken, NeverCancels, ProgressSink};
 pub use cipher::{create_cipher, BlockCipher, CipherKind, BLOCK_SIZE};
 pub use ecdh::{CurveParams, EcPoint, Ecdh, EcdhPrivateKey, EcdhPublicKey};
 pub use errors::CryptoError;
-pub use mode::{create_mode, BlockMode, ModeKind};
+pub use mode::{create_mode, BlockMode, CipherMode, ModeKind, StreamMode};
 pub use padding::{create_padding, Padding, PaddingKind};
 pub use ratchet::{RatchetHeader, RatchetState};
 pub use x3dh::{PreKeyBundle, X3dhResult};

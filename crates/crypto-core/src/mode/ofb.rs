@@ -1,52 +1,40 @@
-use super::{BlockMode, ModeKind};
-use crate::{cipher::BlockCipher, errors::CryptoError, padding::Padding};
+use super::{take_iv16, ModeKind, StreamMode};
+use crate::{cipher::BlockCipher, errors::CryptoError};
 
+/// OFB: гамма = E(регистр), обратная связь — сама гамма.
+/// Шифрование и расшифровка идентичны.
 #[derive(Default)]
-pub struct OfbMode {/* TODO: state: prev block, keystream и т.д. */}
+pub struct OfbMode {
+    reg: [u8; 16],
+    ks: [u8; 16],
+    ks_used: usize,
+}
 
-impl BlockMode for OfbMode {
-    fn kind(&self) -> ModeKind {
-        ModeKind::Ofb
+impl StreamMode for OfbMode {
+    fn set_iv(&mut self, iv: &[u8]) -> Result<(), CryptoError> {
+        self.reg = take_iv16(iv)?;
+        Ok(())
     }
-    fn output_len(&self, _len: usize, _bs: usize, _p: &dyn Padding) -> usize {
-        todo!()
+
+    fn keystream_next(&mut self, cipher: &dyn BlockCipher) -> [u8; 16] {
+        let mut ks = self.reg;
+        cipher.encrypt_block(&mut ks);
+        self.reg = ks;
+        ks
     }
-    fn start_encrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+
+    fn ks_buf(&self) -> [u8; 16] {
+        self.ks
     }
-    fn start_decrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+    fn set_ks_buf(&mut self, ks: [u8; 16]) {
+        self.ks = ks;
     }
-    fn encrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+    fn ks_used(&self) -> usize {
+        self.ks_used
     }
-    fn decrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn encrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+    fn set_ks_used(&mut self, used: usize) {
+        self.ks_used = used;
     }
 }
+
+impl_stream_api!(OfbMode, ModeKind::Ofb);

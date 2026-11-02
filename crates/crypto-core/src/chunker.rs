@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 
 use crate::cipher::BlockCipher;
 use crate::errors::CryptoError;
-use crate::mode::BlockMode;
+use crate::mode::CipherMode;
 use crate::padding::Padding;
 
 pub trait ProgressSink: Send + Sync {
@@ -22,7 +22,7 @@ impl CancellationToken for NeverCancels {
 
 pub struct ChunkEncryptor<'a> {
     cipher: &'a dyn BlockCipher,
-    mode: Box<dyn BlockMode>,
+    mode: Box<dyn CipherMode>,
     padding: Box<dyn Padding>,
     chunk_size: usize,
 }

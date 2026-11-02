@@ -1,52 +1,51 @@
-use super::{BlockMode, ModeKind};
-use crate::{cipher::BlockCipher, errors::CryptoError, padding::Padding};
+use super::{take_iv16, ModeKind, StreamMode};
+use crate::{cipher::BlockCipher, errors::CryptoError};
 
+/// CFB: гамма = E(регистр), обратная связь —
+/// шифротекст, произведённый на этом блоке гаммы.
 #[derive(Default)]
-pub struct CfbMode {/* TODO: state: prev block, keystream и т.д. */}
+pub struct CfbMode {
+    reg: [u8; 16],
+    ks: [u8; 16],
+    ks_used: usize,
+    fb: [u8; 16],
+    fb_len: usize,
+}
 
-impl BlockMode for CfbMode {
-    fn kind(&self) -> ModeKind {
-        ModeKind::Cfb
+impl StreamMode for CfbMode {
+    fn set_iv(&mut self, iv: &[u8]) -> Result<(), CryptoError> {
+        self.reg = take_iv16(iv)?;
+        self.fb_len = 0;
+        Ok(())
     }
-    fn output_len(&self, _len: usize, _bs: usize, _p: &dyn Padding) -> usize {
-        todo!()
+
+    fn keystream_next(&mut self, cipher: &dyn BlockCipher) -> [u8; 16] {
+        let mut ks = self.reg;
+        cipher.encrypt_block(&mut ks);
+        ks
     }
-    fn start_encrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+
+    fn feedback_ct(&mut self, ct: &[u8]) {
+        self.fb[self.fb_len..self.fb_len + ct.len()].copy_from_slice(ct);
+        self.fb_len += ct.len();
+        if self.fb_len == 16 {
+            self.reg = self.fb;
+            self.fb_len = 0;
+        }
     }
-    fn start_decrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+
+    fn ks_buf(&self) -> [u8; 16] {
+        self.ks
     }
-    fn encrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+    fn set_ks_buf(&mut self, ks: [u8; 16]) {
+        self.ks = ks;
     }
-    fn decrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+    fn ks_used(&self) -> usize {
+        self.ks_used
     }
-    fn encrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+    fn set_ks_used(&mut self, used: usize) {
+        self.ks_used = used;
     }
 }
+
+impl_stream_api!(CfbMode, ModeKind::Cfb);

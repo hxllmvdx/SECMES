@@ -1,52 +1,34 @@
 use super::{BlockMode, ModeKind};
-use crate::{cipher::BlockCipher, errors::CryptoError, padding::Padding};
+use crate::{cipher::BlockCipher, errors::CryptoError};
 
+/// ECB: каждый блок независим, состояния кроме буфера нет, IV не используется.
 #[derive(Default)]
-pub struct EcbMode {/* TODO: state: prev block, keystream и т.д. */}
+pub struct EcbMode {
+    buf: Vec<u8>,
+}
 
 impl BlockMode for EcbMode {
-    fn kind(&self) -> ModeKind {
-        ModeKind::Ecb
+    fn buf(&mut self) -> &mut Vec<u8> {
+        &mut self.buf
     }
-    fn output_len(&self, _len: usize, _bs: usize, _p: &dyn Padding) -> usize {
-        todo!()
+
+    fn set_iv(&mut self, iv: &[u8]) -> Result<(), CryptoError> {
+        if !iv.is_empty() {
+            return Err(CryptoError::InvalidIvLength {
+                expected: 0,
+                got: iv.len(),
+            });
+        }
+        Ok(())
     }
-    fn start_encrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+
+    fn step_encrypt(&mut self, cipher: &dyn BlockCipher, block: &mut [u8]) {
+        cipher.encrypt_block(block);
     }
-    fn start_decrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn encrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn encrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+
+    fn step_decrypt(&mut self, cipher: &dyn BlockCipher, block: &mut [u8]) {
+        cipher.decrypt_block(block);
     }
 }
+
+impl_block_api!(EcbMode, ModeKind::Ecb);

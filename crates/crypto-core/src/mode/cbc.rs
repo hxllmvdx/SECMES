@@ -1,52 +1,39 @@
-use super::{BlockMode, ModeKind};
-use crate::{cipher::BlockCipher, errors::CryptoError, padding::Padding};
+use super::{take_iv16, BlockMode, ModeKind};
+use crate::{cipher::BlockCipher, errors::CryptoError};
 
+/// CBC: блок XOR предыдущий шифротекст (первый — с IV) перед шифрованием.
 #[derive(Default)]
-pub struct CbcMode {/* TODO: state: prev block, keystream и т.д. */}
+pub struct CbcMode {
+    buf: Vec<u8>,
+    prev: [u8; 16],
+}
 
 impl BlockMode for CbcMode {
-    fn kind(&self) -> ModeKind {
-        ModeKind::Cbc
+    fn buf(&mut self) -> &mut Vec<u8> {
+        &mut self.buf
     }
-    fn output_len(&self, _len: usize, _bs: usize, _p: &dyn Padding) -> usize {
-        todo!()
+
+    fn set_iv(&mut self, iv: &[u8]) -> Result<(), CryptoError> {
+        self.prev = take_iv16(iv)?;
+        Ok(())
     }
-    fn start_encrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
+
+    fn step_encrypt(&mut self, cipher: &dyn BlockCipher, block: &mut [u8]) {
+        for (b, p) in block.iter_mut().zip(self.prev.iter()) {
+            *b ^= p;
+        }
+        cipher.encrypt_block(block);
+        self.prev.copy_from_slice(block);
     }
-    fn start_decrypt(&mut self, _iv: &[u8]) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn encrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_update(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _i: &[u8],
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn encrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
-    }
-    fn decrypt_finish(
-        &mut self,
-        _c: &dyn BlockCipher,
-        _p: &dyn Padding,
-        _o: &mut Vec<u8>,
-    ) -> Result<(), CryptoError> {
-        todo!()
+
+    fn step_decrypt(&mut self, cipher: &dyn BlockCipher, block: &mut [u8]) {
+        let saved: [u8; 16] = block.try_into().unwrap();
+        cipher.decrypt_block(block);
+        for (b, p) in block.iter_mut().zip(self.prev.iter()) {
+            *b ^= p;
+        }
+        self.prev = saved;
     }
 }
+
+impl_block_api!(CbcMode, ModeKind::Cbc);
