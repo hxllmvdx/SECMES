@@ -74,7 +74,6 @@ mod zeros {
     fn roundtrip_exact_block() {
         let z = ZerosPadding;
         let data = [0xBBu8; BS];
-        let mut block = data;
         let pad = z.pad_len(BS, BS);
         let mut buf = vec![0u8; BS + pad];
         buf[..BS].copy_from_slice(&data);
